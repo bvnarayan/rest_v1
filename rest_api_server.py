@@ -1,4 +1,4 @@
-from bottle import Bottle, request, response, run, template, static_file
+from bottle import Bottle, request, response, run, template, static_file, TEMPLATE_PATH
 from pprint import pprint 
 import time 
 import algebra 
@@ -32,19 +32,19 @@ def time_server():
 
 @app.route('/joke', method='GET')
 def joke_server():
-    response.content_type = 'text/plain' 
+    response.content_type = 'text/html' 
 
     # generate a random number between 1 and 163
     # NOTE: DONT HARDCODE numbers in code!!!
 
     r = random.randint(1, 163)
 
-    connection = sqlite3.connect("jokes.db")
-    cursor = connection.cursor() 
     cursor.execute("SELECT * from Jokes WHERE id = ?", (r,))
     (i, joke) = cursor.fetchone()
-    connection.close()
-    return dict(i=i, joke=joke, service=request.path) 
+    (question, answer) = joke.split('?', 1)
+    question = question + '?'
+
+    return template('joke.tpl', question=question, answer=answer)
     
     
 @app.route('/upper/<word>', method='GET')
@@ -122,7 +122,16 @@ def serve_one_file(filename):
     return static_file(filename, './farm_animals')
 
 if __name__ == '__main__': 
+    # Set TEMPLATE_PATH to make this work in container environment
+    TEMPLATE_PATH.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "views")))
+
+    db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "jokes.db"))
+    connection = sqlite3.connect(db_path)
+    print("connection - ", connection)
+    cursor = connection.cursor()
+    
     run(app, host='0.0.0.0', port='8088')
+    connection.close()
 
 #if __name__ == '__main__': 
 #    run(host='localhost', port='8080')
